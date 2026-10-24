@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOLE-DEEP 1024 · 脑洞改造机</title>
+<style>
+  :root{
+    --bg:#0a0f0a;
+    --green:#39ff88;
+    --dark:#1f6b3a;
+    --dim:#123b22;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--green);
+    font-family:ui-monospace,Consolas,"Courier New",monospace;}
+  body{min-height:100vh;padding:24px 14px 60px;line-height:1.6;font-size:15px;}
+  /* CRT 扫描线 */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+    background:repeating-linear-gradient(to bottom,
+      rgba(57,255,136,.055) 0px,
+      rgba(57,255,136,.055) 1px,
+      transparent 1px,
+      transparent 3px);
+    mix-blend-mode:screen;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.65) 100%);
+  }
+  .win{max-width:900px;margin:0 auto;border:1px solid var(--dark);
+    box-shadow:0 0 24px rgba(57,255,136,.10),inset 0 0 40px rgba(57,255,136,.04);}
+  .bar{display:flex;justify-content:space-between;align-items:center;
+    padding:6px 10px;background:var(--dim);border-bottom:1px solid var(--dark);
+    font-size:13px;letter-spacing:.5px;}
+  .bar b{font-weight:400;color:var(--green)}
+  .bar span{color:var(--dark)}
+  .body{padding:22px 18px 26px}
+  h1{font-size:20px;margin:0 0 6px;font-weight:400;letter-spacing:1px}
+  .sub{color:var(--dark);font-size:13px;margin:0 0 22px}
+  .cursor{display:inline-block;width:9px;height:16px;background:var(--green);
+    vertical-align:-2px;margin-left:4px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  input[type=text]{flex:1 1 220px;background:#061006;border:1px solid var(--dark);
+    color:var(--green);padding:10px 12px;font:inherit;outline:none}
+  input[type=text]:focus{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+  input[type=text]::placeholder{color:var(--dark)}
+  button{background:transparent;border:1px solid var(--green);color:var(--green);
+    padding:10px 18px;font:inherit;cursor:pointer;letter-spacing:1px}
+  button:hover{background:rgba(57,255,136,.12)}
+  button:active{transform:translateY(1px)}
+  .hint{color:var(--dark);font-size:12px;margin:0 0 18px}
+  .warn{color:#ff6b6b;font-size:13px;min-height:20px;margin:0 0 10px}
+  .stage{min-height:40px;margin-bottom:18px}
+  .typing{color:var(--dark)}
+  .cards{display:flex;flex-direction:column;gap:14px}
+  .card{border:1px solid var(--dark);padding:14px 16px;background:rgba(57,255,136,.03);
+    animation:pop .18s ease-out}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .card h2{margin:0 0 10px;font-size:16px;font-weight:400;letter-spacing:1px}
+  .card h2::before{content:"// ";color:var(--dark)}
+  .card ol{margin:0 0 10px;padding-left:22px}
+  .card ol li{margin:2px 0}
+  .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--dark);margin-bottom:8px}
+  .meter{letter-spacing:2px;color:var(--green)}
+  .slogan{border-left:2px solid var(--dark);padding-left:10px;color:var(--green);font-size:14px}
+  .io{margin-top:26px;border-top:1px dashed var(--dark);padding-top:16px}
+  .io summary{cursor:pointer;color:var(--dark);font-size:13px;letter-spacing:1px}
+  textarea{width:100%;min-height:88px;margin-top:10px;background:#061006;
+    border:1px solid var(--dark);color:var(--green);padding:10px;font:inherit;outline:none;resize:vertical}
+  textarea:focus{border-color:var(--green)}
+  .foot{margin-top:18px;color:var(--dim);font-size:12px;text-align:center}
+  @media(max-width:420px){h1{font-size:17px} .body{padding:18px 12px}}
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="bar"><b>&gt; HOLE-DEEP 1024</b><span>C:\BRAIN\BUREAU — 在线</span></div>
+  <div class="body">
+    <h1>脑洞改造机 1024<span class="cursor"></span></h1>
+    <p class="sub">输入一个日常物品 → 输出一条脑洞改造方案。本机离线运行。</p>
+
+    <div class="row">
+      <input id="obj" type="text" placeholder="&gt; 输入一个日常物品…（拖鞋 / 泡面 / 共享单车）" autocomplete="off">
+      <button id="go">生成</button>
+    </div>
+    <p class="hint">回车即可；每件物品有多条方案，多按几次不一样。</p>
+    <p class="warn" id="warn"></p>
+
+    <div class="stage" id="stage"></div>
+    <div class="cards" id="cards"></div>
+
+    <details class="io">
+      <summary>&gt; 导入脑洞（粘贴 AI 生成的一张卡）</summary>
+      <textarea id="json" placeholder='{"name":"脑洞名","steps":["步骤1","步骤2","步骤3"],"crazy":8,"slogan":"一句广告词"}'></textarea>
+      <div class="row" style="margin-top:10px"><button id="imp">导入</button></div>
+    </details>
+
+    <div class="foot">1024 代码盲盒 · 主题：脑洞 / 风格：复古终端</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 卡池：10 件物品 × 2 条 ----------
+  var POOL = {
+    "拖鞋": [
+      {name:"拖鞋声呐", steps:["鞋底嵌入压电薄片，走一步收一次脚步声","回声定位，室内自动画出障碍热图","拖鞋配对成左右声道，立体声导航"], crazy:7, slogan:"穿了它，闭眼也不撞床脚。"},
+      {name:"拖鞋政务厅", steps:["左右拖鞋各挂一个微型喇叭","踩一下=投一票，家庭议题现场表决","鞋柜变成投票站，票数每天结算"], crazy:9, slogan:"家里的民主，从脚下开始。"}
+    ],
+    "泡面": [
+      {name:"泡面时钟", steps:["面饼硬度实时换算成倒计时","盖子上印刻度：软一点=再等30秒","吃完碗底显字：你今天心情偏软"], crazy:6, slogan:"一碗面的时间观。"},
+      {name:"泡面考古层", steps:["把调料包按地质分层铺在碗壁","筷子当钻机，横切面即年代剖面","吃到第几层=穿越到哪一年"], crazy:8, slogan:"这碗面，埋了三亿年。"}
+    ],
+    "共享单车": [
+      {name:"单车代骂服务", steps:["扫码后先听30秒匿名吐槽","蹬一圈解锁一句，越骑越解压","停车即封口，话不外传"], crazy:8, slogan:"骑完这程，气就顺了。"},
+      {name:"单车气象站", steps:["车筐改成风速叶轮","车铃按风向自动变调","扫码即得本街区微气候预报"], crazy:7, slogan:"你骑的不是车，是一阵风。"}
+    ],
+    "保温杯": [
+      {name:"保温杯时间胶囊", steps:["杯身分三层，各封一个年份的茶叶","拧开哪层，就喝到哪一年的自己","杯底刻一句：你还记得吗"], crazy:8, slogan:"喝的不是水，是过期的心情。"},
+      {name:"保温杯情绪恒温", steps:["杯盖测心率，换算成水温目标","生气时自动降温到 42℃","平静时升到 55℃，一口一口哄你"], crazy:7, slogan:"它比你更懂什么时候该凉一凉。"}
+    ],
+    "雨伞": [
+      {name:"雨伞朋友圈", steps:["伞面带导电墨水，雨滴落处显字","写一句今天最想说的话","雨停即消失，只被淋过的人看见"], crazy:9, slogan:"有些话，只配在雨里说。"},
+      {name:"反向雨伞", steps:["伞骨装微型气泵，把雨往上吹成喷泉","伞下永远干燥，伞上永远在下","路人只能看到一朵移动的雨"], crazy:10, slogan:"我带着一场雨上班。"}
+    ],
+    "遥控器": [
+      {name:"遥控器人生", steps:["按键映射成三个动作：暂停/快进/静音","按一下，今天真的少说一句话","电量越低，你能控制的时间越少"], crazy:9, slogan:"别乱按，按了就得认。"},
+      {name:"遥控器考古", steps:["每个按键积一层灰，灰越厚=越少用","扫描灰层生成「你的生活使用率报告」","最后剩一个键最干净：那是你最怕失去的"], crazy:8, slogan:"灰尘不会说谎。"}
+    ],
+    "快递盒": [
+      {name:"快递盒剧场", steps:["盒内壁印六幕小戏，开箱即开演","按拆封顺序逐幕推进","最后一块纸板是谢幕字幕"], crazy:7, slogan:"拆开的不是货，是一场戏。"},
+      {name:"快递盒时间银行", steps:["每只盒子存一段等待时长","攒够100小时可兑换「明天早点到」","盒底盖章：你的耐心已入账"], crazy:8, slogan:"等待也能生利息。"}
+    ],
+    "眼镜": [
+      {name:"眼镜弹幕", steps:["镜片镀一层半透显示膜","别人说话时，脑内吐槽浮在右上角","眨两下可关闭，防止社死"], crazy:9, slogan:"看得清，也看得穿。"},
+      {name:"眼镜反向滤镜", steps:["把美颜效果反向应用：越看越真实","看清每根头发、每粒灰尘","戴满十分钟自动提醒：够了，摘下"], crazy:7, slogan:"真实有点扎眼。"}
+    ],
+    "耳机": [
+      {name:"耳机降噪人生", steps:["不只降环境音，还降他人情绪","老板讲话自动变白噪音","只剩自己的心跳，清晰到吵"], crazy:8, slogan:"世界静了，你响了。"},
+      {name:"耳机翻译梦", steps:["记录你昨夜的梦话并翻译成人话","早上推送一份「潜意识周报」","连续七天同一句=那是你真正想要的"], crazy:9, slogan:"梦里说的，才算数。"}
+    ],
+    "花盆": [
+      {name:"花盆记仇本", steps:["土壤湿度记录你浇水的良心","每忘一次，叶子上多一道暗纹","开花那天，纹路全变成一句话"], crazy:8, slogan:"植物都记得。"},
+      {name:"花盆反向种", steps:["不种花，种「没做完的事」","每完成一件，盆里冒一片叶子","全绿那天，你 phone 里的待办清零"], crazy:9, slogan:"养的不是花，是拖延。"}
+    ]
+  };
+
+  var $ = function(id){return document.getElementById(id)};
+  var objEl=$("obj"), goEl=$("go"), warnEl=$("warn"), stageEl=$("stage"),
+      cardsEl=$("cards"), jsonEl=$("json"), impEl=$("imp");
+
+  function warn(msg){ warnEl.textContent = msg || ""; }
+
+  function meter(n){
+    n = Math.max(1, Math.min(10, parseInt(n,10) || 5));
+    var full = "██████████".slice(0, n);
+    var empty = "░░░░░░░░░░".slice(0, 10-n);
+    return full + empty + "  " + n + "/10";
+  }
+
+  function cardNode(c){
+    var el = document.createElement("div");
+    el.className = "card";
+    var h = document.createElement("h2");
+    h.textContent = c.name || "无名脑洞";
+    el.appendChild(h);
+
+    var steps = Array.isArray(c.steps) ? c.steps.slice(0,3) : [];
+    var ol = document.createElement("ol");
+    steps.forEach(function(s){
+      var li = document.createElement("li");
+      li.textContent = String(s);
+      ol.appendChild(li);
+    });
+    el.appendChild(ol);
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    var m1 = document.createElement("span"); m1.textContent = "离谱指数";
+    var m2 = document.createElement("span"); m2.className = "meter"; m2.textContent = meter(c.crazy);
+    meta.appendChild(m1); meta.appendChild(m2);
+    el.appendChild(meta);
+
+    var sl = document.createElement("div");
+    sl.className = "slogan";
+    sl.textContent = c.slogan || "";
+    el.appendChild(sl);
+    return el;
+  }
+
+  function pushCard(c){
+    cardsEl.insertBefore(cardNode(c), cardsEl.firstChild);
+    while (cardsEl.children.length > 8){
+      cardsEl.removeChild(cardsEl.lastChild);
+    }
+  }
+
+  function typeLine(text, done){
+    stageEl.textContent = "";
+    var p = document.createElement("p");
+    p.className = "typing";
+    stageEl.appendChild(p);
+    var i = 0;
+    var timer = setInterval(function(){
+      i++;
+      p.textContent = text.slice(0, i);
+      if (i >= text.length){
+        clearInterval(timer);
+        setTimeout(function(){ stageEl.textContent=""; if(done) done(); }, 180);
+      }
+    }, 22);
+  }
+
+  function pick(key){
+    var list = POOL[key];
+    if (!list) return null;
+    return list[Math.floor(Math.random()*list.length)];
+  }
+
+  function generate(){
+    var raw = (objEl.value || "").trim();
+    if (!raw){ warn("!! 先给个东西"); return; }
+    warn("");
+    var c = pick(raw);
+    var text = "> 正在解剖 【" + raw + "】 …";
+    typeLine(text, function(){
+      if (c){
+        pushCard(c);
+      } else {
+        // 池外物品：即时合成一条
+        pushCard({
+          name: raw + "·临时改造",
+          steps: [
+            "给【" + raw + "】加一个从未有过的用途",
+            "把它和一件完全无关的东西强行配对",
+            "最后加一句能让人愣住的解释"
+          ],
+          crazy: 6,
+          slogan: "「"+raw+"」不在名册上，说明它还活着。"
+        });
+      }
+    });
+  }
+
+  function doImport(){
+    var txt = (jsonEl.value || "").trim();
+    if (!txt){ warn("!! 空的不算脑洞"); return; }
+    var data;
+    try { data = JSON.parse(txt); }
+    catch(e){ warn("!! 格式不对"); return; }
+    if (!data || typeof data !== "object" || !data.name){
+      warn("!! 格式不对"); return;
+    }
+    warn("");
+    pushCard(data);
+    jsonEl.value = "";
+  }
+
+  goEl.addEventListener("click", generate);
+  objEl.addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); generate(); }
+  });
+  impEl.addEventListener("click", doImport);
+})();
+</script>
+</body>
+</html>
